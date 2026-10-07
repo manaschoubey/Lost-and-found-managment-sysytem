@@ -1,16 +1,13 @@
 package com.lostfound.model;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import java.time.LocalDateTime;
+
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import java.time.LocalDateTime;
+import lombok.Data;
 
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
 @Document(collection = "notifications")
 public class Notification {
 
@@ -18,11 +15,10 @@ public class Notification {
     private String id;
 
     private String userId;
-
     private String title;
-
     private String message;
-
+    private String type;      // MATCH, CLAIM, SYSTEM
+    private String refId;     // matchId or claimId
     private boolean read = false;
 
     private LocalDateTime createdAt = LocalDateTime.now();

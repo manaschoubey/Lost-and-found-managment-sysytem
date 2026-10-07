@@ -1,7 +1,7 @@
 package com.lostfound.model;
 
 public enum MatchStatus {
-    POTENTIAL,
+    SUGGESTED,
     CONFIRMED,
     REJECTED
 }

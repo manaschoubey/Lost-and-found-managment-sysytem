@@ -1,8 +1,9 @@
 package com.lostfound.model;
 
 public enum ItemStatus {
-    OPEN,
-    MATCHED,
+    LOST,
+    FOUND,
+    POSSIBLE_MATCH,
     CLAIMED,
     RETURNED,
     CLOSED

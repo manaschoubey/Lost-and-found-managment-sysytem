@@ -1,16 +1,13 @@
 package com.lostfound.model;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import java.time.LocalDateTime;
+
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import java.time.LocalDateTime;
+import lombok.Data;
 
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
 @Document(collection = "matches")
 public class Match {
 
@@ -18,13 +15,12 @@ public class Match {
     private String id;
 
     private String lostItemId;
-
     private String foundItemId;
+    private String lostUserId;
+    private String foundUserId;
 
-    /** Similarity score between 0.0 and 1.0 */
-    private double score;
-
-    private MatchStatus status = MatchStatus.POTENTIAL;
+    private double score;   // 0.0 – 1.0
+    private MatchStatus status = MatchStatus.SUGGESTED;
 
     private LocalDateTime createdAt = LocalDateTime.now();
 }

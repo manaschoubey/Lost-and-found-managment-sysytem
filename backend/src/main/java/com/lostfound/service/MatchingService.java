@@ -1,162 +1,137 @@
 package com.lostfound.service;
 
-import com.lostfound.model.*;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
+
+import org.apache.commons.text.similarity.LevenshteinDistance;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.lostfound.model.FoundItem;
+import com.lostfound.model.ItemStatus;
+import com.lostfound.model.LostItem;
+import com.lostfound.model.Match;
+import com.lostfound.model.MatchStatus;
+import com.lostfound.model.Notification;
 import com.lostfound.repository.FoundItemRepository;
 import com.lostfound.repository.LostItemRepository;
 import com.lostfound.repository.MatchRepository;
-import lombok.RequiredArgsConstructor;
-import org.apache.commons.text.similarity.CosineSimilarity;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-
-import java.util.*;
+import com.lostfound.repository.NotificationRepository;
 
 @Service
-@RequiredArgsConstructor
 public class MatchingService {
 
-    private final MatchRepository matchRepository;
-    private final LostItemRepository lostItemRepository;
-    private final FoundItemRepository foundItemRepository;
-    private final NotificationService notificationService;
+    @Autowired private LostItemRepository lostRepo;
+    @Autowired private FoundItemRepository foundRepo;
+    @Autowired private MatchRepository matchRepo;
+    @Autowired private NotificationRepository notificationRepo;
 
-    @Value("${matching.similarity-threshold}")
-    private double similarityThreshold;
+    private static final double THRESHOLD = 0.5; // only save matches above 50%
 
-    /**
-     * When a new lost item is reported, compare it against all open found items.
-     */
-    public void findMatchesForLostItem(LostItem lostItem) {
-        List<FoundItem> openFoundItems = foundItemRepository.findByStatus(ItemStatus.OPEN);
+    // Weights
+    private static final double W_NAME = 0.30;
+    private static final double W_CATEGORY = 0.20;
+    private static final double W_LOCATION = 0.30;
+    private static final double W_DATE = 0.20;
 
-        for (FoundItem foundItem : openFoundItems) {
-            if (matchRepository.existsByLostItemIdAndFoundItemId(lostItem.getId(), foundItem.getId())) {
-                continue; // already matched
-            }
-
-            double score = calculateSimilarity(
-                    lostItem.getTitle(), lostItem.getDescription(), lostItem.getCategoryId(),
-                    foundItem.getTitle(), foundItem.getDescription(), foundItem.getCategoryId()
+    /** Called after new LostItem is saved. */
+    public void matchForLostItem(LostItem lost) {
+        List<FoundItem> candidates = foundRepo.findByStatus(ItemStatus.FOUND);
+        for (FoundItem f : candidates) {
+            double score = computeScore(
+                    lost.getItemName(), f.getItemName(),
+                    lost.getCategoryId(), f.getCategoryId(),
+                    lost.getLocation(), f.getLocation(),
+                    lost.getLostDate(), f.getFoundDate()
             );
-
-            if (score >= similarityThreshold) {
-                Match match = new Match();
-                match.setLostItemId(lostItem.getId());
-                match.setFoundItemId(foundItem.getId());
-                match.setScore(score);
-                match.setStatus(MatchStatus.POTENTIAL);
-                matchRepository.save(match);
-
-                // Notify both users
-                notificationService.sendNotification(
-                        lostItem.getUserId(),
-                        "Potential Match Found!",
-                        "Your lost item \"" + lostItem.getTitle() + "\" may match a found item. Score: "
-                                + String.format("%.0f%%", score * 100)
-                );
-                notificationService.sendNotification(
-                        foundItem.getUserId(),
-                        "Potential Match Found!",
-                        "A lost item may match the item you found: \"" + foundItem.getTitle() + "\". Score: "
-                                + String.format("%.0f%%", score * 100)
-                );
+            if (score >= THRESHOLD) {
+                saveMatch(lost.getId(), f.getId(), lost.getUserId(), f.getUserId(), score);
             }
         }
     }
 
-    /**
-     * When a new found item is reported, compare it against all open lost items.
-     */
-    public void findMatchesForFoundItem(FoundItem foundItem) {
-        List<LostItem> openLostItems = lostItemRepository.findByStatus(ItemStatus.OPEN);
-
-        for (LostItem lostItem : openLostItems) {
-            if (matchRepository.existsByLostItemIdAndFoundItemId(lostItem.getId(), foundItem.getId())) {
-                continue;
-            }
-
-            double score = calculateSimilarity(
-                    lostItem.getTitle(), lostItem.getDescription(), lostItem.getCategoryId(),
-                    foundItem.getTitle(), foundItem.getDescription(), foundItem.getCategoryId()
+    /** Called after new FoundItem is saved. */
+    public void matchForFoundItem(FoundItem found) {
+        List<LostItem> candidates = lostRepo.findByStatus(ItemStatus.LOST);
+        for (LostItem l : candidates) {
+            double score = computeScore(
+                    l.getItemName(), found.getItemName(),
+                    l.getCategoryId(), found.getCategoryId(),
+                    l.getLocation(), found.getLocation(),
+                    l.getLostDate(), found.getFoundDate()
             );
-
-            if (score >= similarityThreshold) {
-                Match match = new Match();
-                match.setLostItemId(lostItem.getId());
-                match.setFoundItemId(foundItem.getId());
-                match.setScore(score);
-                match.setStatus(MatchStatus.POTENTIAL);
-                matchRepository.save(match);
-
-                notificationService.sendNotification(
-                        lostItem.getUserId(),
-                        "Potential Match Found!",
-                        "Your lost item \"" + lostItem.getTitle() + "\" may match a found item. Score: "
-                                + String.format("%.0f%%", score * 100)
-                );
-                notificationService.sendNotification(
-                        foundItem.getUserId(),
-                        "Potential Match Found!",
-                        "A lost item may match the item you found: \"" + foundItem.getTitle() + "\". Score: "
-                                + String.format("%.0f%%", score * 100)
-                );
+            if (score >= THRESHOLD) {
+                saveMatch(l.getId(), found.getId(), l.getUserId(), found.getUserId(), score);
             }
         }
     }
 
-    /**
-     * Calculates similarity using cosine similarity on term-frequency vectors
-     * built from the title + description, with a category bonus.
-     */
-    private double calculateSimilarity(String title1, String desc1, String cat1,
-                                       String title2, String desc2, String cat2) {
-        String text1 = (title1 + " " + desc1).toLowerCase();
-        String text2 = (title2 + " " + desc2).toLowerCase();
+    private double computeScore(String name1, String name2,
+                                String cat1, String cat2,
+                                String loc1, String loc2,
+                                java.time.LocalDate d1, java.time.LocalDate d2) {
 
-        Map<CharSequence, Integer> vector1 = buildTermFrequencyVector(text1);
-        Map<CharSequence, Integer> vector2 = buildTermFrequencyVector(text2);
+        double nameScore = stringSimilarity(name1, name2);
+        double catScore = (cat1 != null && cat1.equals(cat2)) ? 1.0 : 0.0;
+        double locScore = stringSimilarity(loc1, loc2);
 
-        CosineSimilarity cosineSimilarity = new CosineSimilarity();
-        double score = cosineSimilarity.cosineSimilarity(vector1, vector2);
-
-        // Boost score if categories match
-        if (cat1 != null && cat2 != null && cat1.equals(cat2)) {
-            score = Math.min(1.0, score + 0.15);
+        double dateScore = 0.0;
+        if (d1 != null && d2 != null) {
+            long days = Math.abs(ChronoUnit.DAYS.between(d1, d2));
+            if (days <= 1) dateScore = 1.0;
+            else if (days <= 7) dateScore = 0.75;
+            else if (days <= 30) dateScore = 0.4;
+            else dateScore = 0.1;
         }
 
-        return score;
+        return W_NAME * nameScore
+             + W_CATEGORY * catScore
+             + W_LOCATION * locScore
+             + W_DATE * dateScore;
     }
 
-    private Map<CharSequence, Integer> buildTermFrequencyVector(String text) {
-        Map<CharSequence, Integer> vector = new HashMap<>();
-        String[] words = text.split("\\W+");
-        for (String word : words) {
-            if (word.length() > 2) { // skip very short words
-                vector.merge(word, 1, Integer::sum);
-            }
+    private double stringSimilarity(String a, String b) {
+        if (a == null || b == null) return 0.0;
+        a = a.toLowerCase().trim();
+        b = b.toLowerCase().trim();
+        int maxLen = Math.max(a.length(), b.length());
+        if (maxLen == 0) return 1.0;
+        int dist = LevenshteinDistance.getDefaultInstance().apply(a, b);
+        return 1.0 - ((double) dist / maxLen);
+    }
+
+    private void saveMatch(String lostId, String foundId,
+                           String lostUser, String foundUser, double score) {
+
+        Match m = new Match();
+        m.setLostItemId(lostId);
+        m.setFoundItemId(foundId);
+        m.setLostUserId(lostUser);
+        m.setFoundUserId(foundUser);
+        m.setScore(score);
+        m.setStatus(MatchStatus.SUGGESTED);
+        matchRepo.save(m);
+
+        // Notify both users
+        notify(lostUser, "Possible match found!",
+                "A found item may match your lost report.", m.getId());
+        if (!lostUser.equals(foundUser)) {
+            notify(foundUser, "Possible match found!",
+                    "A lost report may match the item you found.", m.getId());
         }
-        return vector;
     }
 
-    public List<Match> getMatchesForLostItem(String lostItemId) {
-        return matchRepository.findByLostItemId(lostItemId);
+    private void notify(String userId, String title, String message, String refId) {
+        Notification n = new Notification();
+        n.setUserId(userId);
+        n.setTitle(title);
+        n.setMessage(message);
+        n.setType("MATCH");
+        n.setRefId(refId);
+        notificationRepo.save(n);
     }
 
-    public List<Match> getMatchesForFoundItem(String foundItemId) {
-        return matchRepository.findByFoundItemId(foundItemId);
-    }
-
-    public Match confirmMatch(String matchId) {
-        Match match = matchRepository.findById(matchId)
-                .orElseThrow(() -> new RuntimeException("Match not found"));
-        match.setStatus(MatchStatus.CONFIRMED);
-        return matchRepository.save(match);
-    }
-
-    public Match rejectMatch(String matchId) {
-        Match match = matchRepository.findById(matchId)
-                .orElseThrow(() -> new RuntimeException("Match not found"));
-        match.setStatus(MatchStatus.REJECTED);
-        return matchRepository.save(match);
+    public List<Match> getMatchesForUser(String userId) {
+        return matchRepo.findByLostUserIdOrFoundUserId(userId, userId);
     }
 }

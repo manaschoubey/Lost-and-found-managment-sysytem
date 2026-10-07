@@ -1,40 +1,34 @@
 package com.lostfound.model;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import java.time.LocalDateTime;
-import java.util.List;
+import lombok.Data;
 
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
 @Document(collection = "found_items")
 public class FoundItem {
 
     @Id
     private String id;
 
-    private String title;
-
-    private String description;
-
-    private String categoryId;
-
-    private String locationFound;
-
-    private LocalDateTime dateFound;
-
-    private List<String> imageUrls;
-
     private String userId;
+    private String itemName;
+    private String description;
+    private String categoryId;
+    private String location;
+    private LocalDate foundDate;
+    private String contactInfo;
 
-    private ItemStatus status = ItemStatus.OPEN;
+    private List<String> imageUrls = new ArrayList<>();
+
+    private ItemStatus status = ItemStatus.FOUND;
 
     private LocalDateTime createdAt = LocalDateTime.now();
-
     private LocalDateTime updatedAt = LocalDateTime.now();
 }
