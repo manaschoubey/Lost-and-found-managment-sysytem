@@ -1,49 +1,33 @@
 package com.lostfound.service;
 
-import com.lostfound.model.Notification;
-import com.lostfound.repository.NotificationRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.lostfound.model.Notification;
+import com.lostfound.repository.NotificationRepository;
+
 @Service
-@RequiredArgsConstructor
 public class NotificationService {
 
-    private final NotificationRepository notificationRepository;
+    @Autowired private NotificationRepository repo;
 
-    public void sendNotification(String userId, String title, String message) {
-        Notification notification = new Notification();
-        notification.setUserId(userId);
-        notification.setTitle(title);
-        notification.setMessage(message);
-        notificationRepository.save(notification);
+    public List<Notification> list(String userId) {
+        return repo.findByUserIdOrderByCreatedAtDesc(userId);
     }
 
-    public List<Notification> getUserNotifications(String userId) {
-        return notificationRepository.findByUserIdOrderByCreatedAtDesc(userId);
+    public List<Notification> unread(String userId) {
+        return repo.findByUserIdAndReadFalse(userId);
     }
 
-    public List<Notification> getUnreadNotifications(String userId) {
-        return notificationRepository.findByUserIdAndReadFalseOrderByCreatedAtDesc(userId);
+    public long unreadCount(String userId) {
+        return repo.countByUserIdAndReadFalse(userId);
     }
 
-    public long getUnreadCount(String userId) {
-        return notificationRepository.countByUserIdAndReadFalse(userId);
-    }
-
-    public Notification markAsRead(String notificationId) {
-        Notification notification = notificationRepository.findById(notificationId)
-                .orElseThrow(() -> new RuntimeException("Notification not found"));
-        notification.setRead(true);
-        return notificationRepository.save(notification);
-    }
-
-    public void markAllAsRead(String userId) {
-        List<Notification> unread = notificationRepository
-                .findByUserIdAndReadFalseOrderByCreatedAtDesc(userId);
-        unread.forEach(n -> n.setRead(true));
-        notificationRepository.saveAll(unread);
+    public void markRead(String notificationId) {
+        Notification n = repo.findById(notificationId).orElseThrow();
+        n.setRead(true);
+        repo.save(n);
     }
 }

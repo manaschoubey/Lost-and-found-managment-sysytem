@@ -1,46 +1,49 @@
 package com.lostfound.controller;
 
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.lostfound.dto.ApiResponse;
 import com.lostfound.model.Claim;
+import com.lostfound.model.ClaimStatus;
 import com.lostfound.service.ClaimService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/admin/claims")
-@PreAuthorize("hasRole('ADMIN')")
-@RequiredArgsConstructor
 public class AdminClaimController {
 
-    private final ClaimService claimService;
+    @Autowired private ClaimService claimService;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<Claim>>> getAllClaims() {
-        return ResponseEntity.ok(ApiResponse.success("All claims", claimService.getAllClaims()));
+    public ResponseEntity<ApiResponse<List<Claim>>> all() {
+        return ResponseEntity.ok(ApiResponse.ok("OK", claimService.allClaims()));
     }
 
-    @GetMapping("/pending")
-    public ResponseEntity<ApiResponse<List<Claim>>> getPendingClaims() {
-        return ResponseEntity.ok(ApiResponse.success("Pending claims", claimService.getAllPendingClaims()));
+    @PutMapping("/{id}/approve")
+    public ResponseEntity<ApiResponse<Claim>> approve(@PathVariable String id,
+                                                      @RequestParam(required = false) String remarks) {
+        return ResponseEntity.ok(ApiResponse.ok("Approved",
+                claimService.updateStatus(id, ClaimStatus.APPROVED, remarks)));
     }
 
-    @PostMapping("/{id}/approve")
-    public ResponseEntity<ApiResponse<Claim>> approveClaim(
-            @PathVariable String id,
-            @RequestParam(required = false, defaultValue = "") String notes) {
-        Claim claim = claimService.approveClaim(id, notes);
-        return ResponseEntity.ok(ApiResponse.success("Claim approved", claim));
+    @PutMapping("/{id}/reject")
+    public ResponseEntity<ApiResponse<Claim>> reject(@PathVariable String id,
+                                                     @RequestParam(required = false) String remarks) {
+        return ResponseEntity.ok(ApiResponse.ok("Rejected",
+                claimService.updateStatus(id, ClaimStatus.REJECTED, remarks)));
     }
 
-    @PostMapping("/{id}/reject")
-    public ResponseEntity<ApiResponse<Claim>> rejectClaim(
-            @PathVariable String id,
-            @RequestParam(required = false, defaultValue = "") String notes) {
-        Claim claim = claimService.rejectClaim(id, notes);
-        return ResponseEntity.ok(ApiResponse.success("Claim rejected", claim));
+    @PutMapping("/{id}/review")
+    public ResponseEntity<ApiResponse<Claim>> review(@PathVariable String id) {
+        return ResponseEntity.ok(ApiResponse.ok("Under review",
+                claimService.updateStatus(id, ClaimStatus.UNDER_REVIEW, null)));
     }
 }

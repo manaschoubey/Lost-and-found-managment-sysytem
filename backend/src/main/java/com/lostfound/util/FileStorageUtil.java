@@ -1,13 +1,15 @@
 package com.lostfound.util;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.util.UUID;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
-
-import jakarta.annotation.PostConstruct;
-import java.io.IOException;
-import java.nio.file.*;
-import java.util.UUID;
 
 @Component
 public class FileStorageUtil {
@@ -15,56 +17,23 @@ public class FileStorageUtil {
     @Value("${file.upload-dir}")
     private String uploadDir;
 
-    private Path uploadPath;
-
-    @PostConstruct
-    public void init() {
-        uploadPath = Paths.get(uploadDir).toAbsolutePath().normalize();
+    public String save(MultipartFile file) {
         try {
-            Files.createDirectories(uploadPath);
+            Path dir = Paths.get(uploadDir).toAbsolutePath();
+            Files.createDirectories(dir);
+
+            String ext = "";
+            String orig = file.getOriginalFilename();
+            if (orig != null && orig.contains(".")) {
+                ext = orig.substring(orig.lastIndexOf("."));
+            }
+            String name = UUID.randomUUID() + ext;
+            Path target = dir.resolve(name);
+            Files.copy(file.getInputStream(), target, StandardCopyOption.REPLACE_EXISTING);
+
+            return "/uploads/" + name;
         } catch (IOException e) {
-            throw new RuntimeException("Could not create upload directory: " + uploadDir, e);
-        }
-    }
-
-    /**
-     * Stores the given file and returns the relative URL path (e.g. "/uploads/abc123.jpg").
-     */
-    public String storeFile(MultipartFile file) {
-        if (file.isEmpty()) {
-            throw new RuntimeException("Cannot store empty file");
-        }
-
-        String originalFilename = file.getOriginalFilename();
-        String extension = "";
-        if (originalFilename != null && originalFilename.contains(".")) {
-            extension = originalFilename.substring(originalFilename.lastIndexOf("."));
-        }
-
-        String storedFilename = UUID.randomUUID().toString() + extension;
-
-        try {
-            Path targetLocation = uploadPath.resolve(storedFilename);
-            Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
-            return "/uploads/" + storedFilename;
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to store file: " + originalFilename, e);
-        }
-    }
-
-    /**
-     * Deletes a previously stored file by its URL path.
-     */
-    public void deleteFile(String fileUrl) {
-        if (fileUrl == null || !fileUrl.startsWith("/uploads/")) {
-            return;
-        }
-        String filename = fileUrl.substring("/uploads/".length());
-        try {
-            Path filePath = uploadPath.resolve(filename);
-            Files.deleteIfExists(filePath);
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to delete file: " + filename, e);
+            throw new RuntimeException("Failed to store file: " + e.getMessage());
         }
     }
 }

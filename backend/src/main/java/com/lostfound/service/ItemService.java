@@ -1,202 +1,124 @@
 package com.lostfound.service;
 
-import com.lostfound.dto.ItemRequest;
-import com.lostfound.model.*;
-import com.lostfound.repository.FoundItemRepository;
-import com.lostfound.repository.LostItemRepository;
-import com.lostfound.repository.UserRepository;
-import com.lostfound.util.FileStorageUtil;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
-
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
+import com.lostfound.dto.ItemRequest;
+import com.lostfound.model.FoundItem;
+import com.lostfound.model.ItemStatus;
+import com.lostfound.model.LostItem;
+import com.lostfound.repository.FoundItemRepository;
+import com.lostfound.repository.LostItemRepository;
+
 @Service
-@RequiredArgsConstructor
 public class ItemService {
 
-    private final LostItemRepository lostItemRepository;
-    private final FoundItemRepository foundItemRepository;
-    private final UserRepository userRepository;
-    private final FileStorageUtil fileStorageUtil;
-    private final MatchingService matchingService;
+    @Autowired private LostItemRepository lostRepo;
+    @Autowired private FoundItemRepository foundRepo;
+    @Autowired private MatchingService matchingService;
+    @Autowired private com.lostfound.util.FileStorageUtil fileStorage;
 
-    // ===================== LOST ITEMS =====================
-
-    public LostItem reportLostItem(ItemRequest request, List<MultipartFile> images, String userEmail) {
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
+    // ---- LOST ----
+    public LostItem createLost(String userId, ItemRequest req, List<MultipartFile> images) {
         LostItem item = new LostItem();
-        item.setTitle(request.getTitle());
-        item.setDescription(request.getDescription());
-        item.setCategoryId(request.getCategoryId());
-        item.setLocation(request.getLocation());
-        item.setUserId(user.getId());
+        item.setUserId(userId);
+        item.setItemName(req.getItemName());
+        item.setDescription(req.getDescription());
+        item.setCategoryId(req.getCategoryId());
+        item.setLocation(req.getLocation());
+        item.setLostDate(req.getDate());
+        item.setContactInfo(req.getContactInfo());
+        item.setImageUrls(saveImages(images));
+        item.setStatus(ItemStatus.LOST);
 
-        if (request.getDate() != null && !request.getDate().isEmpty()) {
-            item.setDateLost(LocalDateTime.parse(request.getDate()));
-        }
-
-        List<String> imageUrls = new ArrayList<>();
-        if (images != null) {
-            for (MultipartFile img : images) {
-                if (!img.isEmpty()) {
-                    imageUrls.add(fileStorageUtil.storeFile(img));
-                }
-            }
-        }
-        item.setImageUrls(imageUrls);
-
-        LostItem saved = lostItemRepository.save(item);
-
-        // Trigger automatic matching
-        matchingService.findMatchesForLostItem(saved);
-
+        LostItem saved = lostRepo.save(item);
+        matchingService.matchForLostItem(saved);
         return saved;
     }
 
-    public List<LostItem> getAllLostItems() {
-        return lostItemRepository.findAll();
-    }
-
-    public LostItem getLostItemById(String id) {
-        return lostItemRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Lost item not found"));
-    }
-
-    public List<LostItem> getLostItemsByUser(String userEmail) {
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        return lostItemRepository.findByUserId(user.getId());
-    }
-
-    public List<LostItem> searchLostItems(String keyword) {
-        return lostItemRepository
-                .findByTitleContainingIgnoreCaseOrDescriptionContainingIgnoreCase(keyword, keyword);
-    }
-
-    public LostItem updateLostItem(String id, ItemRequest request, String userEmail) {
-        LostItem item = getLostItemById(id);
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        if (!item.getUserId().equals(user.getId())) {
-            throw new RuntimeException("You can only update your own items");
+    public Page<LostItem> listLost(int page, int size, String keyword, String categoryId) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        // simple in-memory filter if keyword given; else all
+        Page<LostItem> all = lostRepo.findAll(pageable);
+        if ((keyword == null || keyword.isBlank()) && (categoryId == null || categoryId.isBlank())) {
+            return all;
         }
-
-        item.setTitle(request.getTitle());
-        item.setDescription(request.getDescription());
-        item.setCategoryId(request.getCategoryId());
-        item.setLocation(request.getLocation());
-        if (request.getDate() != null && !request.getDate().isEmpty()) {
-            item.setDateLost(LocalDateTime.parse(request.getDate()));
-        }
-        item.setUpdatedAt(LocalDateTime.now());
-
-        return lostItemRepository.save(item);
+        List<LostItem> filtered = all.getContent().stream()
+                .filter(i -> keyword == null || keyword.isBlank()
+                        || (i.getItemName() != null && i.getItemName().toLowerCase().contains(keyword.toLowerCase())))
+                .filter(i -> categoryId == null || categoryId.isBlank() || categoryId.equals(i.getCategoryId()))
+                .toList();
+        return new PageImpl<>(filtered, pageable, filtered.size());
     }
 
-    public void deleteLostItem(String id, String userEmail) {
-        LostItem item = getLostItemById(id);
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        if (!item.getUserId().equals(user.getId())) {
-            throw new RuntimeException("You can only delete your own items");
-        }
-
-        lostItemRepository.deleteById(id);
+    public LostItem getLost(String id) {
+        return lostRepo.findById(id).orElseThrow(() -> new RuntimeException("Lost item not found"));
     }
 
-    // ===================== FOUND ITEMS =====================
+    public void deleteLost(String id, String userId) {
+        LostItem i = getLost(id);
+        if (!i.getUserId().equals(userId)) throw new RuntimeException("Not allowed");
+        lostRepo.delete(i);
+    }
 
-    public FoundItem reportFoundItem(ItemRequest request, List<MultipartFile> images, String userEmail) {
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
+    // ---- FOUND ----
+    public FoundItem createFound(String userId, ItemRequest req, List<MultipartFile> images) {
         FoundItem item = new FoundItem();
-        item.setTitle(request.getTitle());
-        item.setDescription(request.getDescription());
-        item.setCategoryId(request.getCategoryId());
-        item.setLocationFound(request.getLocation());
-        item.setUserId(user.getId());
+        item.setUserId(userId);
+        item.setItemName(req.getItemName());
+        item.setDescription(req.getDescription());
+        item.setCategoryId(req.getCategoryId());
+        item.setLocation(req.getLocation());
+        item.setFoundDate(req.getDate());
+        item.setContactInfo(req.getContactInfo());
+        item.setImageUrls(saveImages(images));
+        item.setStatus(ItemStatus.FOUND);
 
-        if (request.getDate() != null && !request.getDate().isEmpty()) {
-            item.setDateFound(LocalDateTime.parse(request.getDate()));
-        }
-
-        List<String> imageUrls = new ArrayList<>();
-        if (images != null) {
-            for (MultipartFile img : images) {
-                if (!img.isEmpty()) {
-                    imageUrls.add(fileStorageUtil.storeFile(img));
-                }
-            }
-        }
-        item.setImageUrls(imageUrls);
-
-        FoundItem saved = foundItemRepository.save(item);
-
-        // Trigger automatic matching
-        matchingService.findMatchesForFoundItem(saved);
-
+        FoundItem saved = foundRepo.save(item);
+        matchingService.matchForFoundItem(saved);
         return saved;
     }
 
-    public List<FoundItem> getAllFoundItems() {
-        return foundItemRepository.findAll();
-    }
-
-    public FoundItem getFoundItemById(String id) {
-        return foundItemRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Found item not found"));
-    }
-
-    public List<FoundItem> getFoundItemsByUser(String userEmail) {
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        return foundItemRepository.findByUserId(user.getId());
-    }
-
-    public List<FoundItem> searchFoundItems(String keyword) {
-        return foundItemRepository
-                .findByTitleContainingIgnoreCaseOrDescriptionContainingIgnoreCase(keyword, keyword);
-    }
-
-    public FoundItem updateFoundItem(String id, ItemRequest request, String userEmail) {
-        FoundItem item = getFoundItemById(id);
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        if (!item.getUserId().equals(user.getId())) {
-            throw new RuntimeException("You can only update your own items");
+    public Page<FoundItem> listFound(int page, int size, String keyword, String categoryId) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<FoundItem> all = foundRepo.findAll(pageable);
+        if ((keyword == null || keyword.isBlank()) && (categoryId == null || categoryId.isBlank())) {
+            return all;
         }
-
-        item.setTitle(request.getTitle());
-        item.setDescription(request.getDescription());
-        item.setCategoryId(request.getCategoryId());
-        item.setLocationFound(request.getLocation());
-        if (request.getDate() != null && !request.getDate().isEmpty()) {
-            item.setDateFound(LocalDateTime.parse(request.getDate()));
-        }
-        item.setUpdatedAt(LocalDateTime.now());
-
-        return foundItemRepository.save(item);
+        List<FoundItem> filtered = all.getContent().stream()
+                .filter(i -> keyword == null || keyword.isBlank()
+                        || (i.getItemName() != null && i.getItemName().toLowerCase().contains(keyword.toLowerCase())))
+                .filter(i -> categoryId == null || categoryId.isBlank() || categoryId.equals(i.getCategoryId()))
+                .toList();
+        return new PageImpl<>(filtered, pageable, filtered.size());
     }
 
-    public void deleteFoundItem(String id, String userEmail) {
-        FoundItem item = getFoundItemById(id);
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+    public FoundItem getFound(String id) {
+        return foundRepo.findById(id).orElseThrow(() -> new RuntimeException("Found item not found"));
+    }
 
-        if (!item.getUserId().equals(user.getId())) {
-            throw new RuntimeException("You can only delete your own items");
+    public void deleteFound(String id, String userId) {
+        FoundItem i = getFound(id);
+        if (!i.getUserId().equals(userId)) throw new RuntimeException("Not allowed");
+        foundRepo.delete(i);
+    }
+
+    private List<String> saveImages(List<MultipartFile> images) {
+        List<String> urls = new ArrayList<>();
+        if (images != null) {
+            for (MultipartFile f : images) {
+                if (!f.isEmpty()) urls.add(fileStorage.save(f));
+            }
         }
-
-        foundItemRepository.deleteById(id);
+        return urls;
     }
 }

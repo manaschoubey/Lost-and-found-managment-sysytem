@@ -1,33 +1,30 @@
 package com.lostfound.controller;
 
-import com.lostfound.dto.ApiResponse;
-import com.lostfound.service.DashboardService;
-import lombok.RequiredArgsConstructor;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Map;
+import com.lostfound.dto.ApiResponse;
+import com.lostfound.service.DashboardService;
 
 @RestController
 @RequestMapping("/api/dashboard")
-@RequiredArgsConstructor
 public class DashboardController {
 
-    private final DashboardService dashboardService;
+    @Autowired private DashboardService service;
 
-    @GetMapping
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getDashboard() {
-        return ResponseEntity.ok(
-                ApiResponse.success("Dashboard stats", dashboardService.getDashboardStats()));
+    @GetMapping("/user")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> user(Authentication auth) {
+        return ResponseEntity.ok(ApiResponse.ok("OK", service.userStats(auth.getName())));
     }
 
     @GetMapping("/admin")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getAdminDashboard() {
-        return ResponseEntity.ok(
-                ApiResponse.success("Admin dashboard stats", dashboardService.getDashboardStats()));
+    public ResponseEntity<ApiResponse<Map<String, Object>>> admin() {
+        return ResponseEntity.ok(ApiResponse.ok("OK", service.adminAnalytics()));
     }
 }

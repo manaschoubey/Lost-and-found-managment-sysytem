@@ -1,140 +1,97 @@
 package com.lostfound.controller;
 
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
 import com.lostfound.dto.ApiResponse;
 import com.lostfound.dto.ItemRequest;
 import com.lostfound.model.FoundItem;
 import com.lostfound.model.LostItem;
-import com.lostfound.model.Match;
 import com.lostfound.service.ItemService;
-import com.lostfound.service.MatchingService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/items")
-@RequiredArgsConstructor
 public class ItemController {
 
-    private final ItemService itemService;
-    private final MatchingService matchingService;
+    @Autowired private ItemService itemService;
 
-    // ===================== LOST ITEMS =====================
-
+    // ---- LOST ----
     @PostMapping(value = "/lost", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ApiResponse<LostItem>> reportLostItem(
-            @RequestPart("item") ItemRequest request,
+    public ResponseEntity<ApiResponse<LostItem>> createLost(
+            @RequestPart("data") @Valid ItemRequest req,
             @RequestPart(value = "images", required = false) List<MultipartFile> images,
             Authentication auth) {
-        LostItem item = itemService.reportLostItem(request, images, auth.getName());
-        return ResponseEntity.ok(ApiResponse.success("Lost item reported successfully", item));
+        String userId = auth.getName();  // email used as name; get real ID below
+        // We'll fetch real id from user repo
+        return ResponseEntity.ok(ApiResponse.ok("Lost report created",
+                itemService.createLost(userId, req, images)));
     }
 
     @GetMapping("/lost")
-    public ResponseEntity<ApiResponse<List<LostItem>>> getAllLostItems() {
-        return ResponseEntity.ok(ApiResponse.success("Lost items retrieved", itemService.getAllLostItems()));
+    public ResponseEntity<ApiResponse<Page<LostItem>>> listLost(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String categoryId) {
+        return ResponseEntity.ok(ApiResponse.ok("OK",
+                itemService.listLost(page, size, keyword, categoryId)));
     }
 
     @GetMapping("/lost/{id}")
-    public ResponseEntity<ApiResponse<LostItem>> getLostItem(@PathVariable String id) {
-        return ResponseEntity.ok(ApiResponse.success("Lost item retrieved", itemService.getLostItemById(id)));
-    }
-
-    @GetMapping("/lost/my")
-    public ResponseEntity<ApiResponse<List<LostItem>>> getMyLostItems(Authentication auth) {
-        return ResponseEntity.ok(ApiResponse.success("Your lost items", itemService.getLostItemsByUser(auth.getName())));
-    }
-
-    @GetMapping("/lost/search")
-    public ResponseEntity<ApiResponse<List<LostItem>>> searchLostItems(@RequestParam String keyword) {
-        return ResponseEntity.ok(ApiResponse.success("Search results", itemService.searchLostItems(keyword)));
-    }
-
-    @PutMapping("/lost/{id}")
-    public ResponseEntity<ApiResponse<LostItem>> updateLostItem(
-            @PathVariable String id,
-            @RequestBody ItemRequest request,
-            Authentication auth) {
-        LostItem updated = itemService.updateLostItem(id, request, auth.getName());
-        return ResponseEntity.ok(ApiResponse.success("Lost item updated", updated));
+    public ResponseEntity<ApiResponse<LostItem>> getLost(@PathVariable String id) {
+        return ResponseEntity.ok(ApiResponse.ok("OK", itemService.getLost(id)));
     }
 
     @DeleteMapping("/lost/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteLostItem(@PathVariable String id, Authentication auth) {
-        itemService.deleteLostItem(id, auth.getName());
-        return ResponseEntity.ok(ApiResponse.success("Lost item deleted"));
+    public ResponseEntity<ApiResponse<Void>> deleteLost(@PathVariable String id, Authentication auth) {
+        itemService.deleteLost(id, auth.getName());
+        return ResponseEntity.ok(ApiResponse.ok("Deleted", null));
     }
 
-    // ===================== FOUND ITEMS =====================
-
+    // ---- FOUND ----
     @PostMapping(value = "/found", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ApiResponse<FoundItem>> reportFoundItem(
-            @RequestPart("item") ItemRequest request,
+    public ResponseEntity<ApiResponse<FoundItem>> createFound(
+            @RequestPart("data") @Valid ItemRequest req,
             @RequestPart(value = "images", required = false) List<MultipartFile> images,
             Authentication auth) {
-        FoundItem item = itemService.reportFoundItem(request, images, auth.getName());
-        return ResponseEntity.ok(ApiResponse.success("Found item reported successfully", item));
+        return ResponseEntity.ok(ApiResponse.ok("Found report created",
+                itemService.createFound(auth.getName(), req, images)));
     }
 
     @GetMapping("/found")
-    public ResponseEntity<ApiResponse<List<FoundItem>>> getAllFoundItems() {
-        return ResponseEntity.ok(ApiResponse.success("Found items retrieved", itemService.getAllFoundItems()));
+    public ResponseEntity<ApiResponse<Page<FoundItem>>> listFound(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String categoryId) {
+        return ResponseEntity.ok(ApiResponse.ok("OK",
+                itemService.listFound(page, size, keyword, categoryId)));
     }
 
     @GetMapping("/found/{id}")
-    public ResponseEntity<ApiResponse<FoundItem>> getFoundItem(@PathVariable String id) {
-        return ResponseEntity.ok(ApiResponse.success("Found item retrieved", itemService.getFoundItemById(id)));
-    }
-
-    @GetMapping("/found/my")
-    public ResponseEntity<ApiResponse<List<FoundItem>>> getMyFoundItems(Authentication auth) {
-        return ResponseEntity.ok(ApiResponse.success("Your found items", itemService.getFoundItemsByUser(auth.getName())));
-    }
-
-    @GetMapping("/found/search")
-    public ResponseEntity<ApiResponse<List<FoundItem>>> searchFoundItems(@RequestParam String keyword) {
-        return ResponseEntity.ok(ApiResponse.success("Search results", itemService.searchFoundItems(keyword)));
-    }
-
-    @PutMapping("/found/{id}")
-    public ResponseEntity<ApiResponse<FoundItem>> updateFoundItem(
-            @PathVariable String id,
-            @RequestBody ItemRequest request,
-            Authentication auth) {
-        FoundItem updated = itemService.updateFoundItem(id, request, auth.getName());
-        return ResponseEntity.ok(ApiResponse.success("Found item updated", updated));
+    public ResponseEntity<ApiResponse<FoundItem>> getFound(@PathVariable String id) {
+        return ResponseEntity.ok(ApiResponse.ok("OK", itemService.getFound(id)));
     }
 
     @DeleteMapping("/found/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteFoundItem(@PathVariable String id, Authentication auth) {
-        itemService.deleteFoundItem(id, auth.getName());
-        return ResponseEntity.ok(ApiResponse.success("Found item deleted"));
-    }
-
-    // ===================== MATCHES =====================
-
-    @GetMapping("/lost/{id}/matches")
-    public ResponseEntity<ApiResponse<List<Match>>> getMatchesForLostItem(@PathVariable String id) {
-        return ResponseEntity.ok(ApiResponse.success("Matches retrieved", matchingService.getMatchesForLostItem(id)));
-    }
-
-    @GetMapping("/found/{id}/matches")
-    public ResponseEntity<ApiResponse<List<Match>>> getMatchesForFoundItem(@PathVariable String id) {
-        return ResponseEntity.ok(ApiResponse.success("Matches retrieved", matchingService.getMatchesForFoundItem(id)));
-    }
-
-    @PostMapping("/matches/{matchId}/confirm")
-    public ResponseEntity<ApiResponse<Match>> confirmMatch(@PathVariable String matchId) {
-        return ResponseEntity.ok(ApiResponse.success("Match confirmed", matchingService.confirmMatch(matchId)));
-    }
-
-    @PostMapping("/matches/{matchId}/reject")
-    public ResponseEntity<ApiResponse<Match>> rejectMatch(@PathVariable String matchId) {
-        return ResponseEntity.ok(ApiResponse.success("Match rejected", matchingService.rejectMatch(matchId)));
+    public ResponseEntity<ApiResponse<Void>> deleteFound(@PathVariable String id, Authentication auth) {
+        itemService.deleteFound(id, auth.getName());
+        return ResponseEntity.ok(ApiResponse.ok("Deleted", null));
     }
 }

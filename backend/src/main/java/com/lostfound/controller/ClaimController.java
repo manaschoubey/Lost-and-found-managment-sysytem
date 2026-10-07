@@ -1,41 +1,42 @@
 package com.lostfound.controller;
 
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
 import com.lostfound.dto.ApiResponse;
 import com.lostfound.dto.ClaimRequest;
 import com.lostfound.model.Claim;
 import com.lostfound.service.ClaimService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/claims")
-@RequiredArgsConstructor
 public class ClaimController {
 
-    private final ClaimService claimService;
+    @Autowired private ClaimService claimService;
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ApiResponse<Claim>> submitClaim(
-            @RequestPart("claim") ClaimRequest request,
-            @RequestPart(value = "proofImage", required = false) MultipartFile proofImage,
+    public ResponseEntity<ApiResponse<Claim>> create(
+            @RequestPart("data") @Valid ClaimRequest req,
+            @RequestPart(value = "images", required = false) List<MultipartFile> images,
             Authentication auth) {
-        Claim claim = claimService.submitClaim(request, proofImage, auth.getName());
-        return ResponseEntity.ok(ApiResponse.success("Claim submitted successfully", claim));
+        return ResponseEntity.ok(ApiResponse.ok("Claim submitted",
+                claimService.createClaim(auth.getName(), req, images)));
     }
 
     @GetMapping("/my")
-    public ResponseEntity<ApiResponse<List<Claim>>> getMyClaims(Authentication auth) {
-        return ResponseEntity.ok(ApiResponse.success("Your claims", claimService.getClaimsByUser(auth.getName())));
-    }
-
-    @GetMapping("/item/{foundItemId}")
-    public ResponseEntity<ApiResponse<List<Claim>>> getClaimsForItem(@PathVariable String foundItemId) {
-        return ResponseEntity.ok(ApiResponse.success("Claims for item", claimService.getClaimsForItem(foundItemId)));
+    public ResponseEntity<ApiResponse<List<Claim>>> my(Authentication auth) {
+        return ResponseEntity.ok(ApiResponse.ok("OK", claimService.myClaims(auth.getName())));
     }
 }

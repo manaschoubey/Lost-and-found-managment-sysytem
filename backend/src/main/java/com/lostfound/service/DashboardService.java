@@ -1,45 +1,68 @@
 package com.lostfound.service;
 
-import com.lostfound.model.ClaimStatus;
-import com.lostfound.model.ItemStatus;
-import com.lostfound.repository.*;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.lostfound.model.ClaimStatus;
+import com.lostfound.model.ItemStatus;
+import com.lostfound.model.LostItem;
+import com.lostfound.repository.ClaimRepository;
+import com.lostfound.repository.FoundItemRepository;
+import com.lostfound.repository.LostItemRepository;
+import com.lostfound.repository.MatchRepository;
+import com.lostfound.repository.NotificationRepository;
 
 @Service
-@RequiredArgsConstructor
 public class DashboardService {
 
-    private final LostItemRepository lostItemRepository;
-    private final FoundItemRepository foundItemRepository;
-    private final ClaimRepository claimRepository;
-    private final MatchRepository matchRepository;
-    private final UserRepository userRepository;
+    @Autowired private LostItemRepository lostRepo;
+    @Autowired private FoundItemRepository foundRepo;
+    @Autowired private ClaimRepository claimRepo;
+    @Autowired private MatchRepository matchRepo;
+    @Autowired private NotificationRepository notifRepo;
 
-    public Map<String, Object> getDashboardStats() {
-        Map<String, Object> stats = new HashMap<>();
+    public Map<String, Object> userStats(String userId) {
+        Map<String, Object> m = new HashMap<>();
+        m.put("lostReports", lostRepo.countByUserId(userId));
+        m.put("foundReports", foundRepo.countByUserId(userId));
+        m.put("activeClaims", claimRepo.findByClaimantUserId(userId).stream()
+                .filter(c -> c.getStatus() == ClaimStatus.PENDING
+                        || c.getStatus() == ClaimStatus.UNDER_REVIEW)
+                .count());
+        m.put("matches", matchRepo.findByLostUserIdOrFoundUserId(userId, userId).size());
+        m.put("returned", foundRepo.findByStatus(ItemStatus.RETURNED).size());
+        m.put("unreadNotifications", notifRepo.countByUserIdAndReadFalse(userId));
+        return m;
+    }
 
-        // Total counts
-        stats.put("totalLostItems", lostItemRepository.count());
-        stats.put("totalFoundItems", foundItemRepository.count());
-        stats.put("totalClaims", claimRepository.count());
-        stats.put("totalMatches", matchRepository.count());
-        stats.put("totalUsers", userRepository.count());
+    public Map<String, Object> adminAnalytics() {
+        Map<String, Object> m = new HashMap<>();
 
-        // Status breakdowns
-        stats.put("openLostItems", lostItemRepository.countByStatus(ItemStatus.OPEN));
-        stats.put("openFoundItems", foundItemRepository.countByStatus(ItemStatus.OPEN));
-        stats.put("returnedLostItems", lostItemRepository.countByStatus(ItemStatus.RETURNED));
-        stats.put("returnedFoundItems", foundItemRepository.countByStatus(ItemStatus.RETURNED));
+        // Items by category
+        Map<String, Long> byCategory = lostRepo.findAll().stream()
+                .filter(i -> i.getCategoryId() != null)
+                .collect(Collectors.groupingBy(LostItem::getCategoryId, Collectors.counting()));
+        m.put("itemsByCategory", byCategory);
 
-        // Claim stats
-        stats.put("pendingClaims", claimRepository.countByStatus(ClaimStatus.PENDING));
-        stats.put("approvedClaims", claimRepository.countByStatus(ClaimStatus.APPROVED));
-        stats.put("rejectedClaims", claimRepository.countByStatus(ClaimStatus.REJECTED));
+        // Lost vs Found
+        Map<String, Long> lf = new HashMap<>();
+        lf.put("lost", lostRepo.count());
+        lf.put("found", foundRepo.count());
+        m.put("lostVsFound", lf);
 
-        return stats;
+        // Monthly reports
+        Map<String, Long> monthly = lostRepo.findAll().stream()
+                .filter(i -> i.getCreatedAt() != null)
+                .collect(Collectors.groupingBy(
+                        i -> i.getCreatedAt().getYear() + "-" + i.getCreatedAt().getMonthValue(),
+                        Collectors.counting()));
+        m.put("monthlyReports", monthly);
+
+        m.put("totalClaims", claimRepo.count());
+        return m;
     }
 }
