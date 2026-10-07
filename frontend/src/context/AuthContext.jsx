@@ -1,46 +1,43 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState } from 'react';
+import api from '../services/api';
 
-const AuthContext = createContext(null);
-
-export const useAuth = () => useContext(AuthContext);
+const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(() => {
+    const raw = localStorage.getItem('user');
+    return raw ? JSON.parse(raw) : null;
+  });
 
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    const email = localStorage.getItem('email');
-    const fullName = localStorage.getItem('fullName');
-    const role = localStorage.getItem('role');
-
-    if (token && email) {
-      setUser({ token, email, fullName, role });
-    }
-    setLoading(false);
-  }, []);
-
-  const loginUser = (data) => {
-    localStorage.setItem('token', data.token);
-    localStorage.setItem('email', data.email);
-    localStorage.setItem('fullName', data.fullName);
-    localStorage.setItem('role', data.role);
-    setUser(data);
+  const login = async (email, password) => {
+    const res = await api.post('/auth/login', { email, password });
+    const { token, ...u } = res.data.data;
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(u));
+    setUser(u);
+    return u;
   };
 
-  const logoutUser = () => {
+  const register = async (payload) => {
+    const res = await api.post('/auth/register', payload);
+    const { token, ...u } = res.data.data;
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(u));
+    setUser(u);
+    return u;
+  };
+
+  const logout = () => {
     localStorage.removeItem('token');
-    localStorage.removeItem('email');
-    localStorage.removeItem('fullName');
-    localStorage.removeItem('role');
+    localStorage.removeItem('user');
     setUser(null);
   };
 
-  const isAdmin = () => user?.role === 'ADMIN';
-
   return (
-    <AuthContext.Provider value={{ user, loading, loginUser, logoutUser, isAdmin }}>
+    <AuthContext.Provider value={{ user, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );
 }
+
+export const useAuth = () => useContext(AuthContext);
