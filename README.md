@@ -9,13 +9,18 @@ Research Area: Full-Stack Java Development & NoSQL Databases
 Specializations: Java, Spring Boot, MongoDB, React.js, REST APIs, JWT Security
 
 Team Members
-Name	                Enrollment            	Email	Mobile
+
+Name                                                    Enrollment                                                       Email	
+
 Manas chaubey      24E1ARCS0MP40P086        manaschaubey39@gmail.com
+
 kartik matwa       24E1ARCSM30P072          kartikmatwa25@gmail.com
+
 Kushagra saxena    24E1ARCSM40P082          kushagrasaxena022@gmail.com
+
 Manisha mehla      24E1ARCSF40P088          Manisha411880@gmail.com
 
-Abstract
+Abstract------
 This project introduces the Lost & Found Management System, a community-driven platform engineered to reconnect people with their lost belongings through intelligent automated matching and secure claim verification. Traditional lost-and-found processes rely on physical notice boards, social media posts, and word-of-mouth — approaches that lack structure, searchability, and trust mechanisms. This platform addresses those limitations with a full-stack web application designed for campuses, offices, and public spaces.
 
 The system operates on a Java Spring Boot backend with MongoDB as the document store, chosen for its flexible schema that accommodates diverse item attributes (electronics, documents, accessories, clothing). Authentication and authorization are enforced through stateless JSON Web Tokens (JWT) with strict Role-Based Access Control (RBAC) across three roles: USER, ADMIN, and SUPER_ADMIN. The client interface is built with React.js and Tailwind CSS, delivering a modern, fully responsive experience across desktop, tablet, and mobile devices.
@@ -24,7 +29,7 @@ To reduce the manual effort of cross-referencing lost and found reports, the pla
 
 The system also features an item timeline that visually narrates every event in an item's lifecycle — from initial report through match suggestion, claim submission, admin decision, and final return — providing full transparency. An admin analytics dashboard surfaces platform-wide insights including items by category, lost vs. found ratios, and monthly reporting trends. Collectively, the platform transforms fragmented recovery efforts into a structured, searchable, trust-verified ecosystem for community item recovery.
 
-User Roles
+User Roles-----------
 The Lost & Found Management System enforces strict Role-Based Access Control (RBAC) at the API layer utilizing Spring Security and stateless JSON Web Tokens (JWT).
 
 USER: Authenticated community members who can report lost items, report found items, submit claims on found items, view their personal dashboard, receive match notifications, and participate in private chats after a claim is approved.
@@ -33,32 +38,32 @@ ADMIN: Elevated users with privileges to review pending claims, approve or rejec
 
 SUPER_ADMIN: System-level administrators with unrestricted access including role assignment, user management, and system configuration.
 
-Architecture & Core Modules
+Architecture & Core Modules------------
 The Lost & Found architecture operates as a layered full-stack system, with a Spring Boot Java backend as the central application server, a React.js single-page frontend, and MongoDB as the primary persistence layer.
 
-Functional Modules
+Functional Modules----------
 Module 1: Identity & Access Management (IAM)
 Manages user registration, BCrypt password hashing, JWT issuance and validation, and role-based authorization. This module acts as the platform gatekeeper, securing every protected endpoint under /api/items, /api/claims, /api/admin, and /api/chats.
 
-Module 2: Item Reporting & Discovery
+Module 2: Item Reporting & Discovery--------
 Provides CRUD operations for lost and found items with pagination, keyword search, category filters, and multipart image upload. All uploaded images are stored on the server filesystem and served via a /uploads/** static resource handler. Users can browse found items to search for their lost belongings.
 
-Module 3: Automated Matching Engine
+Module 3: Automated Matching Engine-------------
 Runs on every new lost or found report. It computes a weighted similarity score against all candidate items of the opposite type using Levenshtein distance for text comparison and temporal analysis for date proximity. Items exceeding the 50% threshold generate a Match record and immediately notify both parties via the in-app notification system.
 
-Module 4: Claim Verification Workflow
+Module 4: Claim Verification Workflow------------
 Allows users to submit claims on found items with written proof and supporting images. Admins review each claim and can mark it UNDER_REVIEW, APPROVE, or REJECT with remarks. Approving a claim automatically updates the found item's status to CLAIMED and triggers the creation of a private chat room.
 
-Module 5: Private Chat & Handover Coordination
+Module 5: Private Chat & Handover Coordination---------
 Once a claim is approved, an isolated chat room is instantiated linking the finder and the claimant. Users exchange messages inside the app to arrange pickup — phone numbers and emails are never exposed. Each room includes a system-generated safety message warning users against sharing sensitive information.
 
-Module 6: Admin Dashboard & Analytics
+Module 6: Admin Dashboard & Analytics----------
 Provides statistical visualizations (items by category, lost vs. found ratio, monthly reports) alongside a claim review table with one-click approve/reject actions.
 
-Module 7: Item Timeline
+Module 7: Item Timeline-----------
 Aggregates every event in an item's lifecycle — reported, matched, claimed, approved, returned — into a chronological visual timeline displayed on the item detail page.
 
-Database Strategy
+Database Strategy----
 The system utilizes MongoDB Atlas as its primary document store, chosen for its flexible schema that accommodates the diverse, heterogeneous nature of lost and found item attributes.
 
 MongoDB (Document Store)
@@ -110,7 +115,7 @@ Scalability: The backend is stateless (session-less JWT), allowing horizontal sc
 
 Responsiveness: The frontend is fully responsive across mobile, tablet, and desktop using Tailwind CSS utility classes. Dark mode is supported via a persistent theme toggle.
 
-UML Design
+UML Design-----
 [Lost & Found Class Diagram]https://./image/class-diagram.png
 
 [Lost & Found System Architecture]https://./image/architecture.png
@@ -120,11 +125,6 @@ Database Design & UI Mock-ups
 See the "Database Strategy" section above for the complete list of collections and their schemas.
 
 2. Entity-Relationship Overview
-
-
-
-
-
 
 
 
