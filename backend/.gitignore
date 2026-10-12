@@ -1,0 +1,8 @@
+target/
+uploads/
+*.class
+*.jar
+.settings/
+.project
+.classpath
+.factorypath

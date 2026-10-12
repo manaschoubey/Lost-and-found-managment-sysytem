@@ -7,16 +7,23 @@ export default function AdminDashboard() {
   const [analytics, setAnalytics] = useState(null);
   const [claims, setClaims] = useState([]);
 
-  useEffect(() => { load(); }, []);
-
   const load = async () => {
-    const a = await api.get('/dashboard/admin');
-    setAnalytics(a.data.data);
-    const c = await api.get('/admin/claims');
-    setClaims(c.data.data);
+    try {
+      const a = await api.get('/dashboard/admin');
+      setAnalytics(a.data.data);
+      const c = await api.get('/admin/claims');
+      setClaims(c.data.data);
+    } catch {
+      toast.error('Failed to load dashboard');
+    }
   };
 
-  const act = async (id, action) => {
+useEffect(() => {
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  load();
+}, []);
+
+const act = async (id, action) => {
     await api.put(`/admin/claims/${id}/${action}`);
     toast.success('Updated');
     load();

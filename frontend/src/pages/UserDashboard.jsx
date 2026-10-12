@@ -1,14 +1,24 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import api from '../services/api';
 
 export default function UserDashboard() {
   const [stats, setStats] = useState({});
   const [notifs, setNotifs] = useState([]);
 
-  useEffect(() => {
-    api.get('/dashboard/user').then(r => setStats(r.data.data));
-    api.get('/notifications').then(r => setNotifs(r.data.data));
+  const load = useCallback(async () => {
+    try {
+      const s = await api.get('/dashboard/user');
+      setStats(s.data.data);
+      const n = await api.get('/notifications');
+      setNotifs(n.data.data);
+    } catch {
+      console.error('Failed to load dashboard');
+    }
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   return (
     <div>
