@@ -22,6 +22,7 @@ export default function MainLayout({ children }) {
             <NavLink to="/" className={navLinkClass} end>Home</NavLink>
             <NavLink to="/report-lost" className={navLinkClass}>Report Lost</NavLink>
             <NavLink to="/report-found" className={navLinkClass}>Report Found</NavLink>
+            {user && <NavLink to="/chats" className={navLinkClass}>Chats</NavLink>}
 
             {user ? (
               <UserMenu />

@@ -71,6 +71,14 @@ export default function UserMenu() {
             <span>📋</span> My Claims
           </Link>
 
+          <Link
+            to="/chats"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+          >
+            <span>💬</span> My Chats
+          </Link>
+
           {user.role === 'ADMIN' && (
             <Link
               to="/admin"

@@ -9,11 +9,17 @@ import UserDashboard from '../pages/UserDashboard';
 import AdminDashboard from '../pages/AdminDashboard';
 import ProtectedRoute from '../components/ProtectedRoute';
 import MainLayout from '../layouts/MainLayout';
+import Chats from '../pages/Chats';
+import ChatRoom from '../pages/ChatRoom';
 
 export default function AppRoutes() {
   return (
     <MainLayout>
       <Routes>
+        <Route path="/chats" element={
+  <ProtectedRoute><Chats /></ProtectedRoute>} />
+<Route path="/chats/:roomId" element={
+  <ProtectedRoute><ChatRoom /></ProtectedRoute>} />
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
@@ -29,4 +35,5 @@ export default function AppRoutes() {
       </Routes>
     </MainLayout>
   );
+  
 }

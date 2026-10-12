@@ -1,10 +1,9 @@
 package com.lostfound.repository;
 
-import java.util.List;
-
+import com.lostfound.model.Match;
 import org.springframework.data.mongodb.repository.MongoRepository;
 
-import com.lostfound.model.Match;
+import java.util.List;
 
 public interface MatchRepository extends MongoRepository<Match, String> {
     List<Match> findByLostUserIdOrFoundUserId(String lostUserId, String foundUserId);
