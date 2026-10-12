@@ -27,7 +27,7 @@ public class ClaimService {
     @Autowired private com.lostfound.util.FileStorageUtil fileStorage;
 
     public Claim createClaim(String userId, ClaimRequest req, List<MultipartFile> images) {
-        FoundItem found = foundRepo.findById(req.getFoundItemId())
+        foundRepo.findById(req.getFoundItemId())
                 .orElseThrow(() -> new RuntimeException("Found item not found"));
 
         Claim claim = new Claim();
