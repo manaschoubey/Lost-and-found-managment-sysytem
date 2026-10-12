@@ -18,6 +18,19 @@ public class ChatController {
 
     @Autowired private ChatService chatService;
 
+    @PostMapping("/connect")
+    public ResponseEntity<ApiResponse<ChatRoom>> connect(
+            @RequestBody Map<String, String> body,
+            Authentication auth) {
+        String type = body.get("type");
+        String itemId = body.get("itemId");
+        if (itemId == null || itemId.isBlank()) {
+            throw new RuntimeException("Item ID is required");
+        }
+        return ResponseEntity.ok(ApiResponse.ok("Connected",
+                chatService.connectForItem(type, itemId, auth.getName())));
+    }
+
     @GetMapping
     public ResponseEntity<ApiResponse<List<ChatRoom>>> myRooms(Authentication auth) {
         return ResponseEntity.ok(ApiResponse.ok("OK", chatService.myRooms(auth.getName())));

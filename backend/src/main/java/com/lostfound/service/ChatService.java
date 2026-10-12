@@ -14,6 +14,7 @@ public class ChatService {
     @Autowired private MessageRepository msgRepo;
     @Autowired private ClaimRepository claimRepo;
     @Autowired private FoundItemRepository foundRepo;
+    @Autowired private LostItemRepository lostRepo;
     @Autowired private UserRepository userRepo;
 
     public ChatRoom createRoomForClaim(Claim claim) {
@@ -23,12 +24,17 @@ public class ChatService {
         FoundItem item = foundRepo.findById(claim.getFoundItemId())
                 .orElseThrow(() -> new RuntimeException("Found item not found"));
 
+        User finder = userRepo.findByEmail(item.getUserId()).orElse(null);
+        User claimant = userRepo.findByEmail(claim.getClaimantUserId()).orElse(null);
+
         ChatRoom room = new ChatRoom();
         room.setClaimId(claim.getId());
         room.setItemId(item.getId());
         room.setItemName(item.getItemName());
         room.setFinderUserId(item.getUserId());
+        room.setFinderName(finder != null ? finder.getName() : item.getUserId());
         room.setClaimantUserId(claim.getClaimantUserId());
+        room.setClaimantName(claimant != null ? claimant.getName() : claim.getClaimantUserId());
         room.setStatus("OPEN");
         roomRepo.save(room);
 
@@ -43,6 +49,58 @@ public class ChatService {
         return room;
     }
 
+    public ChatRoom connectForItem(String type, String itemId, String currentUserId) {
+        String ownerUserId;
+        String itemName;
+
+        if ("lost".equalsIgnoreCase(type)) {
+            LostItem item = lostRepo.findById(itemId)
+                    .orElseThrow(() -> new RuntimeException("Lost item not found"));
+            ownerUserId = item.getUserId();
+            itemName = item.getItemName();
+        } else {
+            FoundItem item = foundRepo.findById(itemId)
+                    .orElseThrow(() -> new RuntimeException("Found item not found"));
+            ownerUserId = item.getUserId();
+            itemName = item.getItemName();
+        }
+
+        if (currentUserId.equalsIgnoreCase(ownerUserId)) {
+            throw new RuntimeException("You cannot start a chat with yourself.");
+        }
+
+        // Check if a room already exists between these two users for this item
+        List<ChatRoom> existing = roomRepo.findByItemId(itemId);
+        for (ChatRoom r : existing) {
+            if ((currentUserId.equalsIgnoreCase(r.getClaimantUserId()) && ownerUserId.equalsIgnoreCase(r.getFinderUserId())) ||
+                (currentUserId.equalsIgnoreCase(r.getFinderUserId()) && ownerUserId.equalsIgnoreCase(r.getClaimantUserId()))) {
+                return r;
+            }
+        }
+
+        User owner = userRepo.findByEmail(ownerUserId).orElse(null);
+        User current = userRepo.findByEmail(currentUserId).orElse(null);
+
+        ChatRoom room = new ChatRoom();
+        room.setItemId(itemId);
+        room.setItemName(itemName);
+        room.setFinderUserId(ownerUserId);
+        room.setFinderName(owner != null ? owner.getName() : ownerUserId);
+        room.setClaimantUserId(currentUserId);
+        room.setClaimantName(current != null ? current.getName() : currentUserId);
+        room.setStatus("OPEN");
+        roomRepo.save(room);
+
+        Message sys = new Message();
+        sys.setRoomId(room.getId());
+        sys.setSenderUserId("system");
+        sys.setSenderName("System");
+        sys.setText("💬 Chat started regarding \"" + itemName + "\". Please discuss verification and handover safely.");
+        msgRepo.save(sys);
+
+        return room;
+    }
+
     public List<ChatRoom> myRooms(String userId) {
         return roomRepo.findByFinderUserIdOrClaimantUserIdOrderByCreatedAtDesc(userId, userId);
     }
@@ -51,8 +109,8 @@ public class ChatService {
         ChatRoom room = roomRepo.findById(roomId)
                 .orElseThrow(() -> new RuntimeException("Chat room not found"));
 
-        if (!userId.equals(room.getFinderUserId()) && !userId.equals(room.getClaimantUserId())) {
-            throw new RuntimeException("Not allowed");
+        if (!userId.equalsIgnoreCase(room.getFinderUserId()) && !userId.equalsIgnoreCase(room.getClaimantUserId())) {
+            throw new RuntimeException("Not allowed to access this chat room");
         }
         return room;
     }

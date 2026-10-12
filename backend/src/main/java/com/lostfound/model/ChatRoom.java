@@ -13,7 +13,9 @@ public class ChatRoom {
     private String itemId;
     private String itemName;
     private String finderUserId;
+    private String finderName;
     private String claimantUserId;
+    private String claimantName;
     private String status = "OPEN";
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -32,8 +34,14 @@ public class ChatRoom {
     public String getFinderUserId() { return finderUserId; }
     public void setFinderUserId(String finderUserId) { this.finderUserId = finderUserId; }
 
+    public String getFinderName() { return finderName; }
+    public void setFinderName(String finderName) { this.finderName = finderName; }
+
     public String getClaimantUserId() { return claimantUserId; }
     public void setClaimantUserId(String claimantUserId) { this.claimantUserId = claimantUserId; }
+
+    public String getClaimantName() { return claimantName; }
+    public void setClaimantName(String claimantName) { this.claimantName = claimantName; }
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }

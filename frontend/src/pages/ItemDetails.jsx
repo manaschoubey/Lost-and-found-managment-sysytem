@@ -15,6 +15,26 @@ export default function ItemDetails() {
   const [proof, setProof] = useState('');
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
+  const [startingChat, setStartingChat] = useState(false);
+
+  const startChat = async () => {
+    if (!user) {
+      toast.error('Please log in to start a chat');
+      nav('/login');
+      return;
+    }
+    setStartingChat(true);
+    try {
+      const res = await api.post('/chats/connect', { type, itemId: item.id });
+      const roomId = res.data.data.id;
+      toast.success('Connected to chat!');
+      nav(`/chats/${roomId}`);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to connect to chat');
+    } finally {
+      setStartingChat(false);
+    }
+  };
 
   const load = useCallback(async () => {
     try {
@@ -89,18 +109,41 @@ export default function ItemDetails() {
         </div>
       )}
 
-      {user && (
-        <p className="mt-4 text-sm text-gray-500">
-          Contact info is hidden until a claim is approved.
-        </p>
-      )}
+      {/* Action buttons */}
+      <div className="mt-6 flex flex-wrap gap-3 items-center">
+        {user && item.userId !== user?.email && (
+          <button
+            onClick={startChat}
+            disabled={startingChat}
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2 rounded-lg transition disabled:opacity-50"
+          >
+            <span>💬</span> {startingChat ? 'Connecting...' : `Chat with ${type === 'found' ? 'Finder' : 'Reporter'}`}
+          </button>
+        )}
 
-      {type === 'found' && user && (
-        <button onClick={() => setShowClaim(true)}
-          className="mt-4 bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">
-          Claim Item
-        </button>
-      )}
+        {type === 'found' && user && item.userId !== user?.email && (
+          <button
+            onClick={() => setShowClaim(true)}
+            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2 rounded-lg transition"
+          >
+            <span>📋</span> Claim Item
+          </button>
+        )}
+
+        {!user && (
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm text-gray-600">
+            <span>🔒 Please </span>
+            <button onClick={() => nav('/login')} className="text-indigo-600 font-semibold hover:underline">Log in</button>
+            <span> to claim this item or chat with the finder/reporter.</span>
+          </div>
+        )}
+
+        {user && item.userId === user?.email && (
+          <span className="text-xs bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-full font-medium">
+            🎒 You reported this item
+          </span>
+        )}
+      </div>
 
       {/* ============ CLAIM MODAL ============ */}
       {showClaim && (

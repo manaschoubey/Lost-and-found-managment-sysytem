@@ -12,4 +12,5 @@ public interface ChatRoomRepository extends MongoRepository<ChatRoom, String> {
     List<ChatRoom> findByFinderUserIdOrClaimantUserIdOrderByCreatedAtDesc(
             String finderUserId, String claimantUserId);
     List<ChatRoom> findByClaimId(String claimId);
+    List<ChatRoom> findByItemId(String itemId);
 }

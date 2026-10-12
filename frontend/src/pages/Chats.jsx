@@ -35,25 +35,35 @@ export default function Chats() {
         </div>
       )}
 
-      <div className="space-y-2">
+      <div className="space-y-3">
         {rooms.map((room) => {
           const isFinder = room.finderUserId === user?.email;
-          const otherRole = isFinder ? 'Claimant' : 'Finder';
+          const otherName = isFinder
+            ? (room.claimantName || room.claimantUserId)
+            : (room.finderName || room.finderUserId);
+          const otherRole = isFinder ? 'Inquirer / Claimant' : 'Finder / Reporter';
+
           return (
             <Link
               key={room.id}
               to={`/chats/${room.id}`}
-              className="block bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 hover:shadow-md transition"
+              className="block bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 hover:shadow-md hover:border-indigo-200 transition"
             >
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="font-semibold dark:text-white">{room.itemName}</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    You are the <strong>{isFinder ? 'Finder' : 'Claimant'}</strong>
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">🎒</span>
+                    <p className="font-semibold text-gray-900 dark:text-white">{room.itemName}</p>
+                  </div>
+                  <p className="text-xs text-indigo-600 font-medium mt-1">
+                    👤 Chatting with: <span className="font-semibold">{otherName}</span> ({otherRole})
+                  </p>
+                  <p className="text-[11px] text-gray-400 mt-0.5">
+                    Started {room.createdAt ? new Date(room.createdAt).toLocaleDateString() : ''}
                   </p>
                 </div>
-                <span className="text-xs bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 px-2 py-1 rounded-full">
-                  {room.status}
+                <span className="text-xs bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 px-2.5 py-1 rounded-full font-medium">
+                  {room.status || 'OPEN'}
                 </span>
               </div>
             </Link>
