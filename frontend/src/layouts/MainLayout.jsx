@@ -2,6 +2,8 @@ import { Link, NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import UserMenu from '../components/UserMenu';
 
+const isAdmin = (user) => user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
+
 export default function MainLayout({ children }) {
   const { user } = useAuth();
 
@@ -23,6 +25,8 @@ export default function MainLayout({ children }) {
             <NavLink to="/report-lost" className={navLinkClass}>Report Lost</NavLink>
             <NavLink to="/report-found" className={navLinkClass}>Report Found</NavLink>
             {user && <NavLink to="/chats" className={navLinkClass}>Chats</NavLink>}
+            {isAdmin(user) && <NavLink to="/admin/claims" className={navLinkClass}>⚖️ Claims</NavLink>}
+            {isAdmin(user) && <NavLink to="/admin" className={navLinkClass}>🛠️ Admin</NavLink>}
 
             {user ? (
               <UserMenu />

@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.lostfound.dto.ApiResponse;
+import com.lostfound.model.ChatRoom;
 import com.lostfound.model.Claim;
 import com.lostfound.model.ClaimStatus;
 import com.lostfound.service.ClaimService;
@@ -45,5 +46,11 @@ public class AdminClaimController {
     public ResponseEntity<ApiResponse<Claim>> review(@PathVariable String id) {
         return ResponseEntity.ok(ApiResponse.ok("Under review",
                 claimService.updateStatus(id, ClaimStatus.UNDER_REVIEW, null)));
+    }
+
+    /** Returns the chat room created for an approved claim so admin can monitor it. */
+    @GetMapping("/{id}/chat-room")
+    public ResponseEntity<ApiResponse<ChatRoom>> chatRoom(@PathVariable String id) {
+        return ResponseEntity.ok(ApiResponse.ok("OK", claimService.getChatRoomForClaim(id)));
     }
 }

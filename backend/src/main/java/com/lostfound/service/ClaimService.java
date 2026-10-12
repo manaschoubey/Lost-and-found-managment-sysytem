@@ -20,6 +20,7 @@ public class ClaimService {
     @Autowired private NotificationRepository notificationRepo;
     @Autowired private FileStorageUtil fileStorage;
     @Autowired private ChatService chatService;
+    @Autowired private ChatRoomRepository chatRoomRepo;
 
     public Claim createClaim(String userId, ClaimRequest req, List<MultipartFile> images) {
         foundRepo.findById(req.getFoundItemId())
@@ -70,6 +71,25 @@ public class ClaimService {
         }
 
         return claim;
+    }
+
+    /**
+     * Returns the chat room that was created for an approved claim.
+     * Admin can use this to monitor the conversation between finder and claimant.
+     */
+    public ChatRoom getChatRoomForClaim(String claimId) {
+        Claim claim = claimRepo.findById(claimId)
+                .orElseThrow(() -> new RuntimeException("Claim not found"));
+
+        if (claim.getStatus() != ClaimStatus.APPROVED) {
+            throw new RuntimeException("Chat room only available for approved claims");
+        }
+
+        List<ChatRoom> rooms = chatRoomRepo.findByClaimId(claimId);
+        if (rooms.isEmpty()) {
+            throw new RuntimeException("No chat room found for this claim");
+        }
+        return rooms.get(0);
     }
 
     private void notify(String userId, String title, String msg) {
